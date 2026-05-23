@@ -242,7 +242,7 @@ body { display: flex; flex-direction: column; }
 </div>
 
 <!-- MAIN APP -->
-<div class="screen" id="homeScreen">
+<div class="screen active" id="homeScreen">
   <div class="header">
     <div class="header-row">
       <h1>GleyceBank 🏦</h1>
@@ -472,16 +472,18 @@ let recognition = null;
 
 // ── INIT ──
 function init() {
+  updateMonthLabels();
   if (!apiKey) {
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('setupScreen').style.display = 'flex';
     document.getElementById('bottomNav').style.display = 'none';
     document.getElementById('addFab').style.display = 'none';
   } else {
-    goTo('homeScreen', 0);
+    document.getElementById('setupScreen').style.display = 'none';
     document.getElementById('limitInput').value = settings.limit || '';
     document.getElementById('apiKeyEdit').value = apiKey;
+    goTo('homeScreen', 0);
   }
-  updateMonthLabels();
 }
 
 function saveApiKey() {
@@ -732,17 +734,25 @@ Cada objeto deve ter:
 - categoria: exatamente uma de ["Alimentação","Saúde","Casa","Carro","Escola/Filhos","Lazer","Roupas","Serviços","Viagem","Beleza","Outros"]
 - pagamento: "cartão de crédito" | "débito" | "dinheiro" | "pix" | "desconhecido"
 
-Regras:
+Regras de categoria:
 - Restaurante, lanche, delivery, padaria, café → Alimentação
 - Farmácia, médico, plano de saúde, academia → Saúde
 - Aluguel, condomínio, móveis, eletrodomésticos → Casa
-- Combustível, mecânico, estacionamento, Uber, táxi → Carro (exceto ônibus/metrô → Transporte → Outros)
+- Combustível, mecânico, estacionamento, Uber, táxi → Carro
 - Escola, creche, material escolar, livros filhos → Escola/Filhos
 - Cinema, show, bar, viagem lazer, Netflix → Lazer
 - Roupas, calçados, acessórios → Roupas
 - Luz, água, internet, telefone, assinatura → Serviços
 - Passagem aérea, hotel, viagem → Viagem
 - Salão, barbearia, cosméticos, perfume → Beleza
+
+Regras de parcelas:
+- Se mencionar parcelas (ex: "3x", "em 3 vezes", "parcelado em 6x"), divida o valor total pelo número de parcelas
+- Adicione "parcelas" ao objeto com o número de parcelas (ex: 3)
+- O valor no objeto deve ser o valor de UMA parcela (total / parcelas)
+- Se não mencionar parcelas, "parcelas" deve ser 1
+
+Exemplo: "4300 em 3x sofá" → valor: 1433.33, parcelas: 3, descricao: "Sofá (1/3)"
 
 Texto: "${text}"`
         }]
@@ -752,8 +762,28 @@ Texto: "${text}"`
     const raw = data.content.map(i=>i.text||'').join('').replace(/```json|```/g,'').trim();
     const items = JSON.parse(raw);
     items.forEach(item => {
-      transactions.unshift({ id: Date.now()+Math.random(), descricao: item.descricao, valor: parseFloat(item.valor)||0, categoria: item.categoria||'Outros', pagamento: item.pagamento||'desconhecido', timestamp: Date.now() });
+      const parcelas = parseInt(item.parcelas) || 1;
+      const valorParcela = parseFloat(item.valor) || 0;
+      const baseDesc = item.descricao.replace(/\s*\(\d+\/\d+\)\s*$/, '');
+      
+      for (let p = 0; p < parcelas; p++) {
+        const d = new Date();
+        d.setMonth(d.getMonth() + p);
+        const desc = parcelas > 1 ? `${baseDesc} (${p+1}/${parcelas})` : baseDesc;
+        transactions.push({
+          id: Date.now() + Math.random() + p,
+          descricao: desc,
+          valor: valorParcela,
+          categoria: item.categoria || 'Outros',
+          pagamento: item.pagamento || 'desconhecido',
+          timestamp: d.getTime(),
+          parcela: parcelas > 1 ? (p+1) : null,
+          totalParcelas: parcelas > 1 ? parcelas : null
+        });
+      }
     });
+    // reordenar por timestamp desc
+    transactions.sort((a,b) => b.timestamp - a.timestamp);
     localStorage.setItem('mg_txs', JSON.stringify(transactions));
     closeModalBtn();
     renderHome();
@@ -795,6 +825,54 @@ document.getElementById('txInput').addEventListener('keydown', e => {
 });
 
 
+
+
+// ── GERAR ÍCONE DINAMICAMENTE ──
+function generateIcon() {
+  const canvas = document.createElement('canvas');
+  canvas.width = 512; canvas.height = 512;
+  const ctx = canvas.getContext('2d');
+  
+  // fundo roxo arredondado
+  const r = 100;
+  ctx.beginPath();
+  ctx.moveTo(r, 0); ctx.lineTo(512-r, 0);
+  ctx.quadraticCurveTo(512, 0, 512, r);
+  ctx.lineTo(512, 512-r);
+  ctx.quadraticCurveTo(512, 512, 512-r, 512);
+  ctx.lineTo(r, 512);
+  ctx.quadraticCurveTo(0, 512, 0, 512-r);
+  ctx.lineTo(0, r);
+  ctx.quadraticCurveTo(0, 0, r, 0);
+  ctx.closePath();
+  ctx.fillStyle = '#7c6aff';
+  ctx.fill();
+
+  // cifrão
+  ctx.fillStyle = 'white';
+  ctx.font = 'bold 300px Arial Black';
+  ctx.textAlign = 'center';
+  ctx.textBaseline = 'middle';
+  ctx.fillText('💰', 256, 220);
+
+  // texto GLEYCEBANK
+  ctx.font = 'bold 64px Arial';
+  ctx.fillStyle = 'rgba(255,255,255,0.9)';
+  ctx.fillText('GLEYCEBANK', 256, 420);
+
+  const dataUrl = canvas.toDataURL('image/png');
+  
+  // aplicar como apple-touch-icon
+  let link = document.querySelector("link[rel='apple-touch-icon']");
+  if (!link) { link = document.createElement('link'); link.rel = 'apple-touch-icon'; document.head.appendChild(link); }
+  link.href = dataUrl;
+  
+  // favicon
+  let fav = document.querySelector("link[rel='icon']");
+  if (!fav) { fav = document.createElement('link'); fav.rel = 'icon'; document.head.appendChild(fav); }
+  fav.href = dataUrl;
+}
+generateIcon();
 
 // ── IMPORT CSV ──
 function importCSV(event) {
