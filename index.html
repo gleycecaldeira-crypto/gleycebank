@@ -230,16 +230,26 @@ body { display: flex; flex-direction: column; }
 
 
 <!-- SPLASH -->
-<div id="splashScreen" onclick="hideSplash()">
-  <div class="splash-deco" style="width:80px;height:80px;top:60px;left:40px"></div>
-  <div class="splash-deco" style="width:50px;height:50px;top:100px;right:60px"></div>
-  <div class="splash-deco" style="width:35px;height:35px;bottom:120px;left:60px"></div>
-  <div class="splash-deco" style="width:60px;height:60px;bottom:100px;right:40px"></div>
-  <div class="splash-emoji">💸</div>
-  <div class="splash-title">Já vai gastar??</div>
-  <div class="splash-sub">Toque para ver seus gastos</div>
-  <div class="splash-btn">Ver meus gastos 👀</div>
-  <div class="splash-brand">GleyceBank 🏦</div>
+<div id="splashScreen">
+  <div class="splash-popup">
+    <div class="splash-art">
+      <div class="splash-c1"></div>
+      <div class="splash-c2"></div>
+      <div class="splash-c3"></div>
+      <div class="splash-bill2">R$ 50</div>
+      <div style="position:relative;z-index:1;text-align:center">
+        <span class="splash-emoji">💸</span>
+        <div class="splash-bill">R$ 200</div>
+      </div>
+      <div class="splash-bill3">R$ 100</div>
+    </div>
+    <div class="splash-body">
+      <div class="splash-title">Já vai gastar??</div>
+      <div class="splash-sub">Bem-vinda ao GleyceBank,<br>sua financeira pessoal 🏦</div>
+      <button class="splash-btn" onclick="hideSplash()">SIM 😅</button>
+      <div class="splash-brand">GleyceBank • Só você sabe quanto gastou</div>
+    </div>
+  </div>
 </div>
 
 <!-- SETUP -->
