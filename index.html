@@ -352,17 +352,37 @@ body { display: flex; flex-direction: column; }
       <button class="btn-save" style="margin-top:10px" onclick="saveSettings()">Salvar</button>
     </div>
     <div class="settings-section">
-      <div class="settings-label">API Key</div>
+      <div class="settings-label">API Key Anthropic</div>
       <div class="settings-card">
         <div class="settings-row">
           <div>
             <div class="settings-row-label">Chave Anthropic</div>
-            <div class="settings-row-hint">Necessária para o app funcionar</div>
+            <div class="settings-row-hint">Necessária para categorizar gastos</div>
           </div>
           <input class="settings-input" type="password" id="apiKeyEdit" placeholder="sk-ant-..." />
         </div>
       </div>
       <button class="btn-save" style="margin-top:10px" onclick="saveApiKeyEdit()">Atualizar chave</button>
+    </div>
+    <div class="settings-section">
+      <div class="settings-label">Armazenamento na nuvem (JSONBin)</div>
+      <div class="settings-card">
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Master Key</div>
+            <div class="settings-row-hint">Chave X-Master-Key do JSONBin</div>
+          </div>
+          <input class="settings-input" type="password" id="jsonMasterKey" placeholder="$2a$10$..." />
+        </div>
+        <div class="settings-row">
+          <div>
+            <div class="settings-row-label">Access Key</div>
+            <div class="settings-row-hint">Chave X-Access-Key do JSONBin</div>
+          </div>
+          <input class="settings-input" type="password" id="jsonAccessKey" placeholder="$2a$10$..." />
+        </div>
+      </div>
+      <button class="btn-save" style="margin-top:10px" onclick="saveJsonBinKeys()">Salvar e sincronizar</button>
     </div>
     <div class="settings-section">
       <div class="settings-label">Dados</div>
@@ -459,6 +479,9 @@ const CATS = {
 const MONTHS = ["Jan","Fev","Mar","Abr","Mai","Jun","Jul","Ago","Set","Out","Nov","Dez"];
 
 let transactions = JSON.parse(localStorage.getItem('mg_txs') || '[]');
+let jsonMasterKey = localStorage.getItem('mg_jsonmaster') || '';
+let jsonAccessKey = localStorage.getItem('mg_jsonaccess') || '';
+let jsonBinId = localStorage.getItem('mg_jsonbinid') || '';
 let settings = JSON.parse(localStorage.getItem('mg_settings') || '{"limit":0}');
 let apiKey = localStorage.getItem('mg_apikey') || '';
 let curMonth = new Date().getMonth();
@@ -481,13 +504,15 @@ function init() {
     document.getElementById('setupScreen').style.display = 'none';
     document.getElementById('limitInput').value = settings.limit || '';
     document.getElementById('apiKeyEdit').value = apiKey;
+    document.getElementById('jsonMasterKey').value = jsonMasterKey;
+    document.getElementById('jsonAccessKey').value = jsonAccessKey;
     // garantir que homeScreen está ativo
     document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
     document.getElementById('homeScreen').classList.add('active');
     document.querySelectorAll('.nav-item').forEach((n,i) => n.classList.toggle('active', i === 0));
     activeNav = 0;
     // aguardar DOM estar pronto antes de renderizar
-    renderHome();
+    loadFromCloud().then(loaded => { renderHome(); });
   }
 }
 
@@ -790,6 +815,7 @@ Texto: "${text}"`
     // reordenar por timestamp desc
     transactions.sort((a,b) => b.timestamp - a.timestamp);
     localStorage.setItem('mg_txs', JSON.stringify(transactions));
+    syncToCloud();
     closeModalBtn();
     renderHome();
   } catch(e) {
@@ -804,6 +830,7 @@ Texto: "${text}"`
 function deleteTx(id) {
   transactions = transactions.filter(t=>t.id!==id);
   localStorage.setItem('mg_txs', JSON.stringify(transactions));
+  syncToCloud();
   renderHome(); renderAll();
 }
 
@@ -878,6 +905,63 @@ function generateIcon() {
   fav.href = dataUrl;
 }
 generateIcon();
+
+
+// ── JSONBIN ──
+async function saveJsonBinKeys() {
+  const mk = document.getElementById('jsonMasterKey').value.trim();
+  const ak = document.getElementById('jsonAccessKey').value.trim();
+  if (!mk || !ak) { alert('Preencha as duas chaves!'); return; }
+  jsonMasterKey = mk;
+  jsonAccessKey = ak;
+  localStorage.setItem('mg_jsonmaster', mk);
+  localStorage.setItem('mg_jsonaccess', ak);
+
+  // criar bin se não existir
+  if (!jsonBinId) {
+    try {
+      const r = await fetch('https://api.jsonbin.io/v3/b', {
+        method: 'POST',
+        headers: { 'Content-Type': 'application/json', 'X-Master-Key': mk, 'X-Bin-Name': 'gleycebank' },
+        body: JSON.stringify({ transactions: transactions })
+      });
+      const d = await r.json();
+      jsonBinId = d.metadata.id;
+      localStorage.setItem('mg_jsonbinid', jsonBinId);
+      alert('✅ Nuvem configurada! Seus dados estão seguros.');
+    } catch(e) { alert('Erro ao conectar. Verifique as chaves.'); return; }
+  } else {
+    await syncToCloud();
+    alert('✅ Dados sincronizados com a nuvem!');
+  }
+}
+
+async function syncToCloud() {
+  if (!jsonBinId || !jsonMasterKey) return;
+  try {
+    await fetch('https://api.jsonbin.io/v3/b/' + jsonBinId, {
+      method: 'PUT',
+      headers: { 'Content-Type': 'application/json', 'X-Master-Key': jsonMasterKey },
+      body: JSON.stringify({ transactions: transactions })
+    });
+  } catch(e) { console.log('Sync error:', e); }
+}
+
+async function loadFromCloud() {
+  if (!jsonBinId || !jsonAccessKey) return false;
+  try {
+    const r = await fetch('https://api.jsonbin.io/v3/b/' + jsonBinId + '/latest', {
+      headers: { 'X-Access-Key': jsonAccessKey }
+    });
+    const d = await r.json();
+    if (d.record && d.record.transactions) {
+      transactions = d.record.transactions;
+      localStorage.setItem('mg_txs', JSON.stringify(transactions));
+      return true;
+    }
+  } catch(e) { console.log('Load error:', e); }
+  return false;
+}
 
 // ── IMPORT CSV ──
 function importCSV(event) {
