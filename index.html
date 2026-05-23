@@ -216,8 +216,7 @@ body { display: flex; flex-direction: column; }
 .year-val { font-size: 15px; font-weight: 500; }
 
 /* ── API KEY SETUP ── */
-.setup-screen { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; height: 100%; text-align: center; }
-.setup-screen.active { display: flex; }
+.setup-screen { display: none; flex-direction: column; align-items: center; justify-content: center; padding: 40px 24px; height: 100%; text-align: center; position: fixed; inset: 0; background: var(--bg); z-index: 500; }
 .setup-logo { font-size: 48px; margin-bottom: 20px; }
 .setup-screen h2 { font-size: 22px; font-weight: 600; margin-bottom: 10px; }
 .setup-screen p { font-size: 14px; color: var(--muted); line-height: 1.7; margin-bottom: 24px; }
@@ -482,7 +481,12 @@ function init() {
     document.getElementById('setupScreen').style.display = 'none';
     document.getElementById('limitInput').value = settings.limit || '';
     document.getElementById('apiKeyEdit').value = apiKey;
-    goTo('homeScreen', 0);
+    // garantir que homeScreen está ativo
+    document.querySelectorAll('.screen').forEach(s => s.classList.remove('active'));
+    document.getElementById('homeScreen').classList.add('active');
+    document.querySelectorAll('.nav-item').forEach((n,i) => n.classList.toggle('active', i === 0));
+    activeNav = 0;
+    renderHome();
   }
 }
 
