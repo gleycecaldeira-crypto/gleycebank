@@ -486,7 +486,8 @@ function init() {
     document.getElementById('homeScreen').classList.add('active');
     document.querySelectorAll('.nav-item').forEach((n,i) => n.classList.toggle('active', i === 0));
     activeNav = 0;
-    renderHome();
+    // aguardar DOM estar pronto antes de renderizar
+    setTimeout(() => { renderHome(); }, 100);
   }
 }
 
