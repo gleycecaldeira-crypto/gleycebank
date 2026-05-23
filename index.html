@@ -228,6 +228,20 @@ body { display: flex; flex-direction: column; }
 </head>
 <body>
 
+
+<!-- SPLASH -->
+<div id="splashScreen" onclick="hideSplash()">
+  <div class="splash-deco" style="width:80px;height:80px;top:60px;left:40px"></div>
+  <div class="splash-deco" style="width:50px;height:50px;top:100px;right:60px"></div>
+  <div class="splash-deco" style="width:35px;height:35px;bottom:120px;left:60px"></div>
+  <div class="splash-deco" style="width:60px;height:60px;bottom:100px;right:40px"></div>
+  <div class="splash-emoji">💸</div>
+  <div class="splash-title">Já vai gastar??</div>
+  <div class="splash-sub">Toque para ver seus gastos</div>
+  <div class="splash-btn">Ver meus gastos 👀</div>
+  <div class="splash-brand">GleyceBank 🏦</div>
+</div>
+
 <!-- SETUP -->
 <div class="setup-screen" id="setupScreen">
   <div class="setup-logo">💰</div>
@@ -906,6 +920,17 @@ function generateIcon() {
 }
 generateIcon();
 
+
+
+// ── SPLASH ──
+function hideSplash() {
+  transactions = JSON.parse(localStorage.getItem('mg_txs') || '[]');
+  settings = JSON.parse(localStorage.getItem('mg_settings') || '{"limit":0}');
+  const splash = document.getElementById('splashScreen');
+  splash.classList.add('hide');
+  setTimeout(() => { splash.style.display = 'none'; }, 400);
+  renderHome();
+}
 
 // ── JSONBIN ──
 async function saveJsonBinKeys() {
